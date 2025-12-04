@@ -673,215 +673,89 @@ function createSimpleCatapult(group) {
 
 async function loadCatapultModel(group) {
   try {
-    // Usar un modelo 3D simple de catapulta (GLTF)
-    // Modelo público y gratuito de catapulta medieval
-    const modelUrl =
-      "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/models/gltf/trebuchet/scene.gltf";
-
-    // NOTA: El modelo de trebuchet anterior puede no estar disponible
-    // Vamos a crear uno programáticamente como fallback mejorado
-
-    return createDetailedCatapult(group);
+    // Usar TU modelo local catapult.glb
+    const modelUrl = '/models/catapult.glb'; // Ruta relativa desde tu carpeta public
+    console.log("Cargando modelo de catapulta desde:", modelUrl);
+    
+    const gltf = await gltfLoader.loadAsync(modelUrl);
+    
+    // Limpiar catapulta simple si existe
+    while (group.children.length > 0) {
+      group.remove(group.children[0]);
+    }
+    
+    // Añadir el modelo cargado
+    const model = gltf.scene;
+    
+    // Ajustar posición, escala y rotación
+    model.position.set(0, 0, 0);
+    model.scale.set(0.5, 0.5, 0.5); // Ajusta según necesites
+    model.rotation.y = Math.PI; // Rotar 180° si el modelo mira hacia atrás
+    
+    // Buscar la copa en el modelo (puede tener nombre diferente)
+    let cup = null;
+    let armGroup = null;
+    
+    // Intenta encontrar partes por nombre
+    model.traverse((child) => {
+      if (child.isMesh) {
+        // Buscar la parte que actuará como copa
+        if (child.name.toLowerCase().includes('cup') || 
+            child.name.toLowerCase().includes('bowl') ||
+            child.name.toLowerCase().includes('spoon')) {
+          cup = child;
+          console.log("Copa encontrada:", child.name);
+        }
+        
+        // Buscar el brazo o grupo principal
+        if (child.name.toLowerCase().includes('arm') ||
+            child.name.toLowerCase().includes('throw')) {
+          armGroup = child;
+        }
+      }
+    });
+    
+    // Si no encuentra copa, crear una simple
+    if (!cup) {
+      console.log("Creando copa artificial...");
+      const cupGeometry = new THREE.SphereGeometry(0.3, 8, 8);
+      cup = new THREE.Mesh(cupGeometry, materials.metal);
+      cup.name = "catapultCup";
+      cup.position.set(0, 2, 0); // Posición aproximada
+      model.add(cup);
+    }
+    
+    // Si no encuentra brazo, usar el modelo completo
+    if (!armGroup) {
+      armGroup = model;
+    }
+    
+    // Añadir física básica a la catapulta
+    if (Ammo) {
+      const shape = new Ammo.btBoxShape(new Ammo.btVector3(2, 1, 1.5));
+      const mass = 0; // Masa 0 = objeto estático
+      const pos = new THREE.Vector3(0, 1, 0);
+      const quat = new THREE.Quaternion();
+      createRigidBody(model, shape, mass, pos, quat);
+    }
+    
+    group.add(model);
+    
+    // Guardar referencias importantes
+    group.userData.cup = cup;
+    group.userData.armGroup = armGroup;
+    group.userData.model3D = model;
+    group.userData.isGLBModel = true;
+    
+    console.log("Modelo GLB cargado exitosamente");
+    return true;
+    
   } catch (error) {
     console.error("Error cargando modelo 3D de catapulta:", error);
+    
+    // Fallback a catapulta simple
+    console.log("Usando catapulta simple (fallback)");
+    createSimpleCatapult(group);
     return false;
   }
-}
-
-function createDetailedCatapult(group) {
-  // Eliminar la catapulta simple si existe
-  while (group.children.length > 0) {
-    group.remove(group.children[0]);
-  }
-
-  // Catapulta detallada creada programáticamente
-  const mainGroup = new THREE.Group();
-
-  // ---- CHASIS PRINCIPAL ----
-  const chassisGroup = new THREE.Group();
-
-  // Base principal (largueros)
-  const baseLongGeometry = new THREE.BoxGeometry(6, 0.4, 0.3);
-  const baseLong1 = new THREE.Mesh(baseLongGeometry, materials.wood);
-  baseLong1.position.set(0, 0.2, 0.8);
-
-  const baseLong2 = new THREE.Mesh(baseLongGeometry, materials.wood);
-  baseLong2.position.set(0, 0.2, -0.8);
-
-  // Travesaños
-  const crossbeamGeometry = new THREE.BoxGeometry(0.3, 0.4, 1.9);
-  const crossbeam1 = new THREE.Mesh(crossbeamGeometry, materials.wood);
-  crossbeam1.position.set(-2.5, 0.2, 0);
-
-  const crossbeam2 = new THREE.Mesh(crossbeamGeometry, materials.wood);
-  crossbeam2.position.set(0, 0.2, 0);
-
-  const crossbeam3 = new THREE.Mesh(crossbeamGeometry, materials.wood);
-  crossbeam3.position.set(2.5, 0.2, 0);
-
-  // Ruedas
-  const wheelGeometry = new THREE.CylinderGeometry(0.6, 0.6, 0.4, 16);
-  const wheelMaterial = new THREE.MeshBasicMaterial({ color: 0x4a3520 }); // Madera oscura
-
-  const wheels = [];
-  const wheelPositions = [
-    [-2.7, 0.6, 1.1],
-    [2.7, 0.6, 1.1],
-    [-2.7, 0.6, -1.1],
-    [2.7, 0.6, -1.1],
-  ];
-
-  wheelPositions.forEach((pos, i) => {
-    const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
-    wheel.position.set(pos[0], pos[1], pos[2]);
-    wheel.rotation.z = Math.PI / 2;
-    wheels.push(wheel);
-  });
-
-  chassisGroup.add(
-    baseLong1,
-    baseLong2,
-    crossbeam1,
-    crossbeam2,
-    crossbeam3,
-    ...wheeles
-  );
-
-  // ---- ESTRUCTURA VERTICAL ----
-  const frameGroup = new THREE.Group();
-
-  // Postes verticales
-  const verticalPostGeometry = new THREE.BoxGeometry(0.3, 3, 0.3);
-  const postMaterial = new THREE.MeshBasicMaterial({ color: 0x5d4037 }); // Madera marrón
-
-  const leftPost = new THREE.Mesh(verticalPostGeometry, postMaterial);
-  leftPost.position.set(-1, 1.5, 0);
-
-  const rightPost = new THREE.Mesh(verticalPostGeometry, postMaterial);
-  rightPost.position.set(1, 1.5, 0);
-
-  // Travesaño superior
-  const topBeamGeometry = new THREE.BoxGeometry(2.3, 0.3, 0.3);
-  const topBeam = new THREE.Mesh(topBeamGeometry, postMaterial);
-  topBeam.position.set(0, 3, 0);
-
-  // Refuerzos diagonales
-  const diagonalGeometry = new THREE.BoxGeometry(0.2, 2.2, 0.2);
-  diagonalGeometry.rotateZ(Math.atan2(2, 1));
-
-  const diag1 = new THREE.Mesh(diagonalGeometry, postMaterial);
-  diag1.position.set(-0.5, 1.1, 0.3);
-
-  const diag2 = new THREE.Mesh(diagonalGeometry.clone(), postMaterial);
-  diag2.rotation.z = -Math.atan2(2, 1);
-  diag2.position.set(0.5, 1.1, 0.3);
-
-  const diag3 = new THREE.Mesh(diagonalGeometry.clone(), postMaterial);
-  diag3.position.set(-0.5, 1.1, -0.3);
-
-  const diag4 = new THREE.Mesh(diagonalGeometry.clone(), postMaterial);
-  diag4.rotation.z = -Math.atan2(2, 1);
-  diag4.position.set(0.5, 1.1, -0.3);
-
-  frameGroup.add(leftPost, rightPost, topBeam, diag1, diag2, diag3, diag4);
-
-  // ---- BRAZO DE LA CATAPULTA ----
-  const armGroup = new THREE.Group();
-  armGroup.name = "catapultArm";
-
-  // Brazo principal (más largo en la parte del contrapeso)
-  const armGeometry = new THREE.BoxGeometry(0.25, 6, 0.25);
-  const arm = new THREE.Mesh(
-    armGeometry,
-    new THREE.MeshBasicMaterial({ color: 0x3e2723 })
-  );
-  arm.position.y = 3;
-
-  // Copa (cucharón) para el proyectil
-  const cupGeometry = new THREE.SphereGeometry(0.45, 10, 10);
-  const cup = new THREE.Mesh(
-    cupGeometry,
-    new THREE.MeshBasicMaterial({ color: 0x424242 })
-  );
-  cup.name = "catapultCup";
-  cup.position.set(0, 6, 0);
-  cup.scale.set(1, 0.5, 1);
-
-  // Contrapeso
-  const counterweightGeometry = new THREE.BoxGeometry(1.2, 1.5, 0.8);
-  const counterweight = new THREE.Mesh(
-    counterweightGeometry,
-    new THREE.MeshBasicMaterial({ color: 0x212121 })
-  );
-  counterweight.position.set(0, -1.5, 0);
-
-  // Eje del brazo
-  const axleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.6, 8);
-  const axle = new THREE.Mesh(
-    axleGeometry,
-    new THREE.MeshBasicMaterial({ color: 0x757575 })
-  );
-  axle.position.set(0, 0.5, 0);
-  axle.rotation.z = Math.PI / 2;
-
-  armGroup.add(arm, cup, counterweight, axle);
-  armGroup.position.set(0, 0.5, 0);
-  armGroup.rotation.z = -Math.PI / 6; // Ángulo inicial
-
-  // ---- MECANISMO DE TENSION ----
-  const mechanismGroup = new THREE.Group();
-
-  // Brazos de tensión
-  const tensionArmGeometry = new THREE.BoxGeometry(0.15, 2.5, 0.15);
-  const tensionArm1 = new THREE.Mesh(
-    tensionArmGeometry,
-    new THREE.MeshBasicMaterial({ color: 0x5d4037 })
-  );
-  tensionArm1.position.set(-0.5, 1.25, 0.4);
-  tensionArm1.rotation.z = Math.PI / 6;
-
-  const tensionArm2 = new THREE.Mesh(
-    tensionArmGeometry,
-    new THREE.MeshBasicMaterial({ color: 0x5d4037 })
-  );
-  tensionArm2.position.set(0.5, 1.25, 0.4);
-  tensionArm2.rotation.z = -Math.PI / 6;
-
-  const tensionArm3 = new THREE.Mesh(
-    tensionArmGeometry,
-    new THREE.MeshBasicMaterial({ color: 0x5d4037 })
-  );
-  tensionArm3.position.set(-0.5, 1.25, -0.4);
-  tensionArm3.rotation.z = Math.PI / 6;
-
-  const tensionArm4 = new THREE.Mesh(
-    tensionArmGeometry,
-    new THREE.MeshBasicMaterial({ color: 0x5d4037 })
-  );
-  tensionArm4.position.set(0.5, 1.25, -0.4);
-  tensionArm4.rotation.z = -Math.PI / 6;
-
-  // Cuerda/tendón (simplificado)
-  const ropeGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1.5, 8);
-  const rope = new THREE.Mesh(
-    ropeGeometry,
-    new THREE.MeshBasicMaterial({ color: 0x8d6e63 })
-  );
-  rope.position.set(0, 0.75, 0);
-  rope.rotation.x = Math.PI / 2;
-
-  mechanismGroup.add(tensionArm1, tensionArm2, tensionArm3, tensionArm4, rope);
-
-  // Ensamblar toda la catapulta
-  mainGroup.add(chassisGroup, frameGroup, armGroup, mechanismGroup);
-
-  // Añadir al grupo principal
-  group.add(mainGroup);
-
-  // Guardar referencias importantes
-  group.userData.cup = cup;
-  group.userData.armGroup = armGroup;
-  group.userData.isDetailed = true;
-
-  return true;
 }
