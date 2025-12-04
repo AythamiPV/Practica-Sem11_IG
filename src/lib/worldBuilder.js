@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { createRigidBody, Ammo } from "./physics.js";
 
-// Materiales actualizados con texturas
+// Materiales básicos (sin texturas)
 const materials = {
   movable: new THREE.MeshBasicMaterial({ color: 0x8b4513 }),
   immovable: new THREE.MeshBasicMaterial({ color: 0x808080 }),
@@ -11,76 +11,13 @@ const materials = {
   enemy: new THREE.MeshBasicMaterial({ color: 0x000000 }),
   wood: new THREE.MeshBasicMaterial({ color: 0x8b4513 }),
   metal: new THREE.MeshBasicMaterial({ color: 0x666666 }),
-  ground: null,
-  mountain: null,
+  ground: new THREE.MeshBasicMaterial({ color: 0x7cfc00 }),
+  mountain: new THREE.MeshBasicMaterial({ color: 0x888888 }),
 };
 
-// Cargar texturas
-let texturesLoaded = false;
-const textureLoader = new THREE.TextureLoader();
 const gltfLoader = new GLTFLoader();
 
-// Función para cargar texturas
-function loadTextures() {
-  if (texturesLoaded) return Promise.resolve();
-
-  return new Promise((resolve) => {
-    // Textura de césped
-    const grassTexture = textureLoader.load(
-      "https://threejs.org/examples/textures/terrain/grasslight-big.jpg",
-      () => {
-        grassTexture.wrapS = grassTexture.wrapT = THREE.RepeatWrapping;
-        grassTexture.repeat.set(20, 20);
-
-        materials.ground = new THREE.MeshBasicMaterial({
-          map: grassTexture,
-          color: 0x7cfc00,
-        });
-
-        // Textura de roca para montañas
-        const rockTexture = textureLoader.load(
-          "https://threejs.org/examples/textures/terrain/rock.png",
-          () => {
-            rockTexture.wrapS = rockTexture.wrapT = THREE.RepeatWrapping;
-            rockTexture.repeat.set(4, 4);
-
-            materials.mountain = new THREE.MeshBasicMaterial({
-              map: rockTexture,
-              color: 0x888888,
-            });
-
-            texturesLoaded = true;
-            resolve();
-          },
-          undefined,
-          (error) => {
-            console.error("Error cargando textura de roca:", error);
-            materials.mountain = new THREE.MeshBasicMaterial({
-              color: 0x888888,
-            });
-            texturesLoaded = true;
-            resolve();
-          }
-        );
-      },
-      undefined,
-      (error) => {
-        console.error("Error cargando textura de césped:", error);
-        materials.ground = new THREE.MeshBasicMaterial({ color: 0x7cfc00 });
-        materials.mountain = new THREE.MeshBasicMaterial({ color: 0x888888 });
-        texturesLoaded = true;
-        resolve();
-      }
-    );
-  });
-}
-
 export function createGround(scene) {
-  // Asegurar que las texturas estén cargadas
-  if (!materials.ground) {
-    materials.ground = new THREE.MeshBasicMaterial({ color: 0x7cfc00 });
-  }
-
   // Terreno principal plano (con física)
   const groundSize = 100;
   const groundGeometry = new THREE.PlaneGeometry(
@@ -112,56 +49,53 @@ export function createGround(scene) {
 }
 
 function createMountains(scene, groundSize) {
-  // Cargar texturas primero si no están cargadas
-  loadTextures().then(() => {
-    // Crear un anillo de montañas alrededor del terreno - MUCHO MÁS ALEJADAS
-    const innerRingRadius = groundSize * 1.5; // 150 unidades desde centro
-    const outerRingRadius = groundSize * 2.0; // 200 unidades desde centro
-    const numMountains = 32; // Más montañas para cubrir más área
+  // Crear un anillo de montañas alrededor del terreno - MUCHO MÁS ALEJADAS
+  const innerRingRadius = groundSize * 1.5; // 150 unidades desde centro
+  const outerRingRadius = groundSize * 2.0; // 200 unidades desde centro
+  const numMountains = 32; // Más montañas para cubrir más área
 
-    for (let i = 0; i < numMountains; i++) {
-      const angle = (i / numMountains) * Math.PI * 2;
+  for (let i = 0; i < numMountains; i++) {
+    const angle = (i / numMountains) * Math.PI * 2;
 
-      // Posición en anillo (entre radio interno y externo)
-      const radius =
-        innerRingRadius + Math.random() * (outerRingRadius - innerRingRadius);
-      const x = Math.cos(angle) * radius;
-      const z = Math.sin(angle) * radius;
+    // Posición en anillo (entre radio interno y externo)
+    const radius =
+      innerRingRadius + Math.random() * (outerRingRadius - innerRingRadius);
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
 
-      // Variar altura y tamaño - montañas más grandes al estar más lejos
-      const distanceFactor = radius / innerRingRadius;
-      const baseHeight = 20 * distanceFactor;
-      const height = baseHeight + Math.random() * 30 * distanceFactor;
-      const width = 10 * distanceFactor + Math.random() * 15 * distanceFactor;
-      const depth = 10 * distanceFactor + Math.random() * 15 * distanceFactor;
+    // Variar altura y tamaño - montañas más grandes al estar más lejos
+    const distanceFactor = radius / innerRingRadius;
+    const baseHeight = 20 * distanceFactor;
+    const height = baseHeight + Math.random() * 30 * distanceFactor;
+    const width = 10 * distanceFactor + Math.random() * 15 * distanceFactor;
+    const depth = 10 * distanceFactor + Math.random() * 15 * distanceFactor;
 
-      // Crear montaña
-      const mountain = createMountain(x, z, width, height, depth, angle);
-      scene.add(mountain);
-    }
+    // Crear montaña
+    const mountain = createMountain(x, z, width, height, depth, angle);
+    scene.add(mountain);
+  }
 
-    // Montañas más grandes en las esquinas - MUCHO MÁS ALEJADAS
-    const cornerDistance = groundSize * 1.8; // 180 unidades
-    createCornerMountain(scene, cornerDistance, cornerDistance, 35, 45); // Esquina NE
-    createCornerMountain(scene, -cornerDistance, cornerDistance, 35, 45); // Esquina NW
-    createCornerMountain(scene, cornerDistance, -cornerDistance, 35, 45); // Esquina SE
-    createCornerMountain(scene, -cornerDistance, -cornerDistance, 35, 45); // Esquina SW
+  // Montañas más grandes en las esquinas - MUCHO MÁS ALEJADAS
+  const cornerDistance = groundSize * 1.8; // 180 unidades
+  createCornerMountain(scene, cornerDistance, cornerDistance, 35, 45); // Esquina NE
+  createCornerMountain(scene, -cornerDistance, cornerDistance, 35, 45); // Esquina NW
+  createCornerMountain(scene, cornerDistance, -cornerDistance, 35, 45); // Esquina SE
+  createCornerMountain(scene, -cornerDistance, -cornerDistance, 35, 45); // Esquina SW
 
-    // Montañas extra grandes para horizonte - MUY ALEJADAS
-    const horizonDistance = groundSize * 2.2; // 220 unidades
-    createLargeMountain(scene, 0, horizonDistance, 50, 60); // Norte
-    createLargeMountain(scene, 0, -horizonDistance, 50, 60); // Sur
-    createLargeMountain(scene, horizonDistance, 0, 50, 60); // Este
-    createLargeMountain(scene, -horizonDistance, 0, 50, 60); // Oeste
+  // Montañas extra grandes para horizonte - MUY ALEJADAS
+  const horizonDistance = groundSize * 2.2; // 220 unidades
+  createLargeMountain(scene, 0, horizonDistance, 50, 60); // Norte
+  createLargeMountain(scene, 0, -horizonDistance, 50, 60); // Sur
+  createLargeMountain(scene, horizonDistance, 0, 50, 60); // Este
+  createLargeMountain(scene, -horizonDistance, 0, 50, 60); // Oeste
 
-    // Montañas diagonales adicionales
-    const diagDistance = groundSize * 1.9;
-    const diagOffset = diagDistance * Math.cos(Math.PI / 4);
-    createMediumMountain(scene, diagOffset, diagOffset, 30, 40); // NE diagonal
-    createMediumMountain(scene, -diagOffset, diagOffset, 30, 40); // NW diagonal
-    createMediumMountain(scene, diagOffset, -diagOffset, 30, 40); // SE diagonal
-    createMediumMountain(scene, -diagOffset, -diagOffset, 30, 40); // SW diagonal
-  });
+  // Montañas diagonales adicionales
+  const diagDistance = groundSize * 1.9;
+  const diagOffset = diagDistance * Math.cos(Math.PI / 4);
+  createMediumMountain(scene, diagOffset, diagOffset, 30, 40); // NE diagonal
+  createMediumMountain(scene, -diagOffset, diagOffset, 30, 40); // NW diagonal
+  createMediumMountain(scene, diagOffset, -diagOffset, 30, 40); // SE diagonal
+  createMediumMountain(scene, -diagOffset, -diagOffset, 30, 40); // SW diagonal
 }
 
 function createMountain(x, z, width, height, depth, rotation) {
@@ -374,8 +308,6 @@ function createLargeMountain(scene, x, z, baseSize, height) {
   return group;
 }
 
-// ... (el resto del código se mantiene igual)
-
 export function createBrick(type, position, rotation = 0, isStable = true) {
   const isMovable = type === "movable";
   const isVertical = rotation === 90;
@@ -572,35 +504,126 @@ export function createProjectile(type, position, velocity = null) {
   return projectile;
 }
 
-export function createCatapult(position = new THREE.Vector3(-25, 0, 0)) {
-  const group = new THREE.Group();
-  group.position.copy(position);
+// FUNCIÓN MODIFICADA PARA CARGAR MODELO DE CATAPULTA
+export async function loadCatapultModel(scene, physicsWorld) {
+  console.log("Cargando modelo de catapulta...");
 
-  // Datos de la catapulta
-  group.userData.type = "catapult";
-  group.userData.angle = 45;
-  group.userData.power = 50;
-  group.userData.baseRotation = 0;
-  group.userData.loaded = false;
-  group.userData.cup = null; // Se asignará cuando se cargue el modelo
+  try {
+    // Ruta al modelo - cambia esto si tu modelo está en otra ubicación
+    const modelUrl = "./models/catapult.glb";
+    console.log("Intentando cargar modelo desde:", modelUrl);
 
-  // Crear catapulta simple temporal mientras carga el modelo
-  createSimpleCatapult(group);
+    // Intentar cargar el modelo GLTF de catapulta
+    const gltf = await gltfLoader.loadAsync(modelUrl);
 
-  // Intentar cargar modelo 3D de catapulta
-  loadCatapultModel(group).then((success) => {
-    if (success) {
-      console.log("Modelo 3D de catapulta cargado exitosamente");
-    } else {
-      console.log("Usando catapulta simple (fallback)");
+    console.log("Modelo 3D de catapulta cargado exitosamente");
+
+    // Obtener el modelo de la escena
+    const model = gltf.scene;
+
+    // Ajustar posición, escala y rotación
+    model.position.set(0, 1, -15);
+    model.scale.set(1, 1, 1); // Escala normal
+    model.rotation.y = Math.PI; // Rotar 180° para que mire hacia adelante
+
+    // Asegurarse de que el modelo sea visible
+    model.traverse((child) => {
+      if (child.isMesh) {
+        child.visible = true;
+        // Añadir materiales básicos si es necesario
+        if (!child.material) {
+          child.material = materials.wood;
+        }
+      }
+    });
+
+    // Buscar la copa en el modelo
+    let cup = null;
+    model.traverse((child) => {
+      if (child.isMesh) {
+        if (
+          child.name.toLowerCase().includes("cup") ||
+          child.name.toLowerCase().includes("bowl") ||
+          child.name.toLowerCase().includes("spoon")
+        ) {
+          cup = child;
+          console.log("Copa encontrada en el modelo:", child.name);
+        }
+      }
+    });
+
+    // Si no encuentra copa, crear una simple en una posición visible
+    if (!cup) {
+      console.log("Creando copa artificial...");
+      const cupGeometry = new THREE.SphereGeometry(0.3, 8, 8);
+      cup = new THREE.Mesh(cupGeometry, materials.metal);
+      cup.name = "catapultCup";
+      cup.position.set(1, 3, 0); // Posición más visible
+      model.add(cup);
     }
-  });
 
-  return group;
+    // Añadir el modelo a la escena
+    scene.add(model);
+
+    console.log("Catapulta añadida a la escena en posición:", model.position);
+
+    // Crear físicas para la catapulta
+    if (Ammo && physicsWorld) {
+      const transform = new Ammo.btTransform();
+      transform.setIdentity();
+      transform.setOrigin(new Ammo.btVector3(0, 1, -15));
+
+      const motionState = new Ammo.btDefaultMotionState(transform);
+      const colShape = new Ammo.btBoxShape(new Ammo.btVector3(2, 0.5, 1));
+      const localInertia = new Ammo.btVector3(0, 0, 0);
+      colShape.calculateLocalInertia(1, localInertia);
+
+      const rbInfo = new Ammo.btRigidBodyConstructionInfo(
+        0,
+        motionState,
+        colShape,
+        localInertia
+      );
+      const body = new Ammo.btRigidBody(rbInfo);
+
+      physicsWorld.addRigidBody(body);
+
+      // Configuración de la catapulta
+      const catapultConfig = {
+        group: model,
+        body: body,
+        cup: cup,
+        type: "gltf-model",
+        position: new THREE.Vector3(0, 1, -15),
+      };
+
+      return catapultConfig;
+    }
+
+    // Si no hay física, retornar configuración básica
+    const catapultConfig = {
+      group: model,
+      cup: cup,
+      type: "gltf-model",
+      position: new THREE.Vector3(0, 1, -15),
+    };
+
+    return catapultConfig;
+  } catch (error) {
+    console.error("Error cargando modelo 3D de catapulta:", error);
+    console.log("Detalles del error:", error.message);
+
+    // Fallback a catapulta simple
+    console.log("Usando catapulta simple como fallback");
+    return createSimpleCatapult(scene, physicsWorld);
+  }
 }
 
-function createSimpleCatapult(group) {
-  // Catapulta simple (fallback si no carga el modelo 3D)
+// FUNCIÓN PARA CREAR CATAPULTA SIMPLE (FALLBACK)
+export function createSimpleCatapult(scene, physicsWorld) {
+  console.log("Creando catapulta simple...");
+
+  const group = new THREE.Group();
 
   // Base
   const baseGeometry = new THREE.BoxGeometry(4, 0.6, 3);
@@ -665,97 +688,69 @@ function createSimpleCatapult(group) {
     armGroup
   );
 
-  // Guardar referencia a la copa
-  group.userData.cup = cup;
-  group.userData.armGroup = armGroup;
-  group.userData.isSimple = true;
+  // Posicionar la catapulta
+  group.position.set(0, 1, -15);
+  group.rotation.y = Math.PI;
+
+  scene.add(group);
+
+  console.log("Catapulta simple creada en posición:", group.position);
+
+  // Crear físicas para la catapulta
+  if (Ammo && physicsWorld) {
+    const transform = new Ammo.btTransform();
+    transform.setIdentity();
+    transform.setOrigin(new Ammo.btVector3(0, 1, -15));
+
+    const motionState = new Ammo.btDefaultMotionState(transform);
+    const colShape = new Ammo.btBoxShape(new Ammo.btVector3(2, 0.5, 1.5));
+    const localInertia = new Ammo.btVector3(0, 0, 0);
+    colShape.calculateLocalInertia(1, localInertia);
+
+    const rbInfo = new Ammo.btRigidBodyConstructionInfo(
+      0,
+      motionState,
+      colShape,
+      localInertia
+    );
+    const body = new Ammo.btRigidBody(rbInfo);
+
+    physicsWorld.addRigidBody(body);
+
+    // Configuración de la catapulta
+    const catapultConfig = {
+      group: group,
+      body: body,
+      armGroup: armGroup,
+      cup: cup,
+      type: "simple",
+    };
+
+    return catapultConfig;
+  }
+
+  // Si no hay física, retornar configuración básica
+  const catapultConfig = {
+    group: group,
+    armGroup: armGroup,
+    cup: cup,
+    type: "simple",
+  };
+
+  return catapultConfig;
 }
 
-async function loadCatapultModel(group) {
-  try {
-    // Usar TU modelo local catapult.glb
-    const modelUrl = '/models/catapult.glb'; // Ruta relativa desde tu carpeta public
-    console.log("Cargando modelo de catapulta desde:", modelUrl);
-    
-    const gltf = await gltfLoader.loadAsync(modelUrl);
-    
-    // Limpiar catapulta simple si existe
-    while (group.children.length > 0) {
-      group.remove(group.children[0]);
-    }
-    
-    // Añadir el modelo cargado
-    const model = gltf.scene;
-    
-    // Ajustar posición, escala y rotación
-    model.position.set(0, 0, 0);
-    model.scale.set(0.5, 0.5, 0.5); // Ajusta según necesites
-    model.rotation.y = Math.PI; // Rotar 180° si el modelo mira hacia atrás
-    
-    // Buscar la copa en el modelo (puede tener nombre diferente)
-    let cup = null;
-    let armGroup = null;
-    
-    // Intenta encontrar partes por nombre
-    model.traverse((child) => {
-      if (child.isMesh) {
-        // Buscar la parte que actuará como copa
-        if (child.name.toLowerCase().includes('cup') || 
-            child.name.toLowerCase().includes('bowl') ||
-            child.name.toLowerCase().includes('spoon')) {
-          cup = child;
-          console.log("Copa encontrada:", child.name);
-        }
-        
-        // Buscar el brazo o grupo principal
-        if (child.name.toLowerCase().includes('arm') ||
-            child.name.toLowerCase().includes('throw')) {
-          armGroup = child;
-        }
-      }
-    });
-    
-    // Si no encuentra copa, crear una simple
-    if (!cup) {
-      console.log("Creando copa artificial...");
-      const cupGeometry = new THREE.SphereGeometry(0.3, 8, 8);
-      cup = new THREE.Mesh(cupGeometry, materials.metal);
-      cup.name = "catapultCup";
-      cup.position.set(0, 2, 0); // Posición aproximada
-      model.add(cup);
-    }
-    
-    // Si no encuentra brazo, usar el modelo completo
-    if (!armGroup) {
-      armGroup = model;
-    }
-    
-    // Añadir física básica a la catapulta
-    if (Ammo) {
-      const shape = new Ammo.btBoxShape(new Ammo.btVector3(2, 1, 1.5));
-      const mass = 0; // Masa 0 = objeto estático
-      const pos = new THREE.Vector3(0, 1, 0);
-      const quat = new THREE.Quaternion();
-      createRigidBody(model, shape, mass, pos, quat);
-    }
-    
-    group.add(model);
-    
-    // Guardar referencias importantes
-    group.userData.cup = cup;
-    group.userData.armGroup = armGroup;
-    group.userData.model3D = model;
-    group.userData.isGLBModel = true;
-    
-    console.log("Modelo GLB cargado exitosamente");
-    return true;
-    
-  } catch (error) {
-    console.error("Error cargando modelo 3D de catapulta:", error);
-    
-    // Fallback a catapulta simple
-    console.log("Usando catapulta simple (fallback)");
-    createSimpleCatapult(group);
-    return false;
-  }
+// FUNCIÓN PARA CREAR CATAPULTA (MANTENIDA PARA COMPATIBILIDAD)
+export function createCatapult(position = new THREE.Vector3(-25, 0, 0)) {
+  console.warn(
+    "createCatapult está deprecada. Usa loadCatapultModel en su lugar."
+  );
+
+  const group = new THREE.Group();
+  group.position.copy(position);
+
+  // Crear catapulta simple como placeholder
+  createSimpleCatapult(group, null);
+
+  return group;
 }
