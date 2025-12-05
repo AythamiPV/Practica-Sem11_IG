@@ -230,7 +230,7 @@ async function startLevel() {
     type: catapultConfig.type || "pirate-cannon", // Asegurar que tiene type
     angle: 45,
     power: 30,
-    baseRotation: 0,
+    baseRotation: 279.7,
     currentElevation: Math.PI / 4, // 45° inicial
   };
 
@@ -877,32 +877,42 @@ function animate() {
 
     // Si quieres una vista más desde el costado derecho:
     // Actualizar cámara de cañón - ¡CAMBIOS AQUÍ!
+    // Actualizar cámara de cañón - ¡REVISADO!
     if (activeCamera === catapultCamera && catapult) {
-      // ¡NUEVO OFFSET! Detrás del cañón pero hacia la derecha
-      // Original: new THREE.Vector3(-8, 5, 8) (detrás-izquierda-arriba)
-      // Cambiado a: new THREE.Vector3(-5, 5, 10) (detrás-derecha-arriba)
-      const offset = new THREE.Vector3(-5, 5, 10); // Más a la derecha y más atrás
+      // ⭐⭐ NUEVO: La cámara debe estar DETRÁS del cañón (en el eje Z negativo)
+      // Cuando el cañón mira hacia el centro, la cámara debe estar detrás mirando hacia adelante
 
-      // Aplicar rotación horizontal al offset de cámara
-      const initialRotation = catapult.userData?.initialRotation || Math.PI;
+      // Offset de la cámara: DETRÁS, ARRIBA y a la DERECHA del cañón
+      // Z positivo es adelante del cañón, así que para estar detrás usamos Z negativo
+      const offset = new THREE.Vector3(-5, 5, -10); // ⭐ CAMBIADO: de 10 a -10 (detrás)
+
+      // Obtener rotación total del cañón
+      const initialRotation = catapult.userData?.initialRotation || 0;
       const baseRotation = catapult.userData?.baseRotation || 0;
       const totalRotation = initialRotation + baseRotation;
 
+      // Rotar el offset según la orientación del cañón
       offset.applyEuler(new THREE.Euler(0, totalRotation, 0));
 
-      // Obtener posición inicial del cañón (en la esquina)
-      const initialPosition =
-        catapult.userData?.initialPosition || catapult.position;
+      // Obtener posición del cañón
+      const cannonPosition =
+        catapult.userData?.initialPosition || catapult.position.clone();
 
-      // Posicionar cámara
-      catapultCamera.position.copy(initialPosition).add(offset);
+      // Posicionar cámara DETRÁS del cañón
+      catapultCamera.position.copy(cannonPosition).add(offset);
 
-      // Hacer que la cámara mire hacia la boca del cañón (no exactamente al centro del cañón)
-      // Para ver mejor la trayectoria
-      const lookAtOffset = new THREE.Vector3(0, 0, 5); // Un poco más adelante del cañón
-      lookAtOffset.applyEuler(new THREE.Euler(0, totalRotation, 0));
+      // Hacer que la cámara mire hacia DONDE APUNTA EL CAÑÓN
+      // Calcular punto de mira: un poco adelante en la dirección que apunta el cañón
 
-      const lookAtPoint = initialPosition.clone().add(lookAtOffset);
+      // Dirección que apunta el cañón (adelante en Z+ en coordenadas locales)
+      const lookDirection = new THREE.Vector3(0, 0, 15); // Más adelante para mejor vista
+
+      // Aplicar rotación del cañón a la dirección de mira
+      lookDirection.applyEuler(new THREE.Euler(0, totalRotation, 0));
+
+      // Punto hacia donde mirar
+      const lookAtPoint = cannonPosition.clone().add(lookDirection);
+
       catapultCamera.lookAt(lookAtPoint);
     }
 

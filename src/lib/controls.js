@@ -88,14 +88,12 @@ export function updateCatapult(catapult, deltaTime) {
     // Tecla Q - Aumentar potencia (MÁS LENTO)
     userData.power += 1 * deltaTime * 60; // Reducido de 1.0 a 0.5
     userData.power = Math.min(userData.power, MAX_POWER);
-    console.log(`Q - Potencia aumentada: ${userData.power.toFixed(1)}`);
   }
 
   if (keyStates.KeyA) {
     // Tecla A - Disminuir potencia (MÁS LENTO)
     userData.power -= 1 * deltaTime * 60; // Reducido de 1.0 a 0.5
     userData.power = Math.max(userData.power, MIN_POWER);
-    console.log(`A - Potencia disminuida: ${userData.power.toFixed(1)}`);
   }
 
   // ---- CONTROL DE ELEVACIÓN (Flechas Arriba/Abajo) ----
@@ -117,11 +115,11 @@ export function updateCatapult(catapult, deltaTime) {
   // ---- CONTROL DE ROTACIÓN (Flechas Izquierda/Derecha) ----
   // Reducida la sensibilidad de 0.04 a 0.02 (la mitad)
   if (keyStates.ArrowLeft) {
-    userData.baseRotation += 0.007 * deltaTime * 60;
+    userData.baseRotation += 0.005 * deltaTime * 60;
   }
 
   if (keyStates.ArrowRight) {
-    userData.baseRotation -= 0.007 * deltaTime * 60;
+    userData.baseRotation -= 0.005 * deltaTime * 60;
   }
 
   // ---- APLICAR LAS TRANSFORMACIONES VISUALES ----
@@ -132,7 +130,7 @@ export function updateCatapult(catapult, deltaTime) {
   }
 
   // 2. Aplicar rotación horizontal a TODO el cañón
-  catapult.rotation.y = Math.PI + userData.baseRotation;
+  catapult.rotation.y = userData.initialRotation + userData.baseRotation;
 
   // Actualizar variables globales para el HUD
   angle = (userData.currentElevation * 180) / Math.PI;
@@ -241,7 +239,9 @@ export function getLaunchVelocity(catapult) {
     direction.applyEuler(new THREE.Euler(0, userData.baseRotation || 0, 0));
 
     // Aplicar rotación inicial del cañón (180°)
-    direction.applyEuler(new THREE.Euler(0, Math.PI, 0));
+    // Aplicar rotación inicial del cañón
+    const initialRotation = userData.initialRotation || Math.PI;
+    direction.applyEuler(new THREE.Euler(0, initialRotation, 0));
 
     return direction.multiplyScalar(baseVelocity);
   }

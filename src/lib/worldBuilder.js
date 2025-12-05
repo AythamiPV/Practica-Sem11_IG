@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { createRigidBody, Ammo } from "./physics.js";
 
 // Materiales básicos (sin texturas)
@@ -15,10 +14,8 @@ const materials = {
   mountain: new THREE.MeshBasicMaterial({ color: 0x888888 }),
 };
 
-const gltfLoader = new GLTFLoader();
-
 export function createGround(scene) {
-  // Terreno principal plano (con física)
+  // Terreno principal plano (con física) - MANTENER ESTE TAMAÑO
   const groundSize = 100;
   const groundGeometry = new THREE.PlaneGeometry(
     groundSize,
@@ -31,6 +28,10 @@ export function createGround(scene) {
   ground.position.y = 0;
   ground.receiveShadow = true;
 
+  // Marcar como suelo físico
+  ground.userData.type = "ground";
+  ground.userData.isDecorative = false;
+
   if (Ammo) {
     const groundShape = new Ammo.btBoxShape(
       new Ammo.btVector3(groundSize / 2, 0.5, groundSize / 2)
@@ -42,8 +43,30 @@ export function createGround(scene) {
 
   scene.add(ground);
 
-  // Crear montañas decorativas alrededor
-  createMountains(scene, groundSize);
+  // SEGUNDO SUELO DECORATIVO (MUCHO MÁS GRANDE)
+  const decorativeGroundSize = 500; // 5 veces más grande
+  const decorativeGroundGeometry = new THREE.PlaneGeometry(
+    decorativeGroundSize,
+    decorativeGroundSize,
+    64,
+    64
+  );
+  const decorativeGround = new THREE.Mesh(
+    decorativeGroundGeometry,
+    materials.ground
+  );
+  decorativeGround.rotation.x = -Math.PI / 2;
+  decorativeGround.position.y = -0.01; // Ligeramente más abajo para evitar z-fighting
+  decorativeGround.receiveShadow = true;
+
+  // Marcar como decorativo (sin física)
+  decorativeGround.userData.type = "ground";
+  decorativeGround.userData.isDecorative = true;
+  decorativeGround.userData.isGround = true;
+
+  scene.add(decorativeGround);
+
+  createMountains(scene, decorativeGroundSize / 2);
 
   return ground;
 }
@@ -661,7 +684,7 @@ export async function loadCatapultModel(scene, physicsWorld) {
     // Calcular el ángulo para mirar hacia el centro (0,0)
     // atan2(centroZ - posiciónZ, centroX - posiciónX)
     const angleToCenter = Math.atan2(0 - cornerZ, 0 - cornerX);
-    cannonGroup.rotation.y = angleToCenter;
+    cannonGroup.rotation.y = angleToCenter + Math.PI;
 
     // Añadir a la escena
     scene.add(cannonGroup);
@@ -737,7 +760,7 @@ export async function loadCatapultModel(scene, physicsWorld) {
 
         // Propiedades de posición en esquina
         initialPosition: new THREE.Vector3(cornerX, cornerY, cornerZ),
-        initialRotation: angleToCenter,
+        initialRotation: angleToCenter + Math.PI,
       };
 
       return cannonConfig;
@@ -768,7 +791,7 @@ export async function loadCatapultModel(scene, physicsWorld) {
 
       // Propiedades de posición en esquina
       initialPosition: new THREE.Vector3(cornerX, cornerY, cornerZ),
-      initialRotation: angleToCenter,
+      initialRotation: angleToCenter + Math.PI,
     };
 
     return cannonConfig;
